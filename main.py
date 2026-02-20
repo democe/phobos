@@ -31,6 +31,48 @@ SOURCE_MODULES = {
     "twitter": sources.twitter,
 }
 
+BROWSER_SOURCES = {"news", "twitter"}
+
+
+
+def _run_source(source_name: str, source_cfg: dict, ollama_cfg: dict) -> tuple[str, str] | None:
+    """Run the full pipeline for a single non-browser source.
+
+    Returns (source_name, summary) on success, None to skip.
+    """
+    if source_name not in SOURCE_MODULES:
+        logger.warning("Unknown source '%s', skipping", source_name)
+        return None
+
+    try:
+        items = SOURCE_MODULES[source_name].fetch(source_cfg, None)
+    except Exception as e:
+        logger.error("Source '%s' failed: %s", source_name, e)
+        return None
+
+    if source_cfg.get("cache", True):
+        cache_file = CACHE_DIR / f"{source_name}.json"
+        new_items = cache.filter_new(items, cache_file)
+        if not new_items:
+            logger.info("No new items from '%s', skipping", source_name)
+            return None
+    else:
+        new_items = items
+        cache_file = None
+
+    try:
+        summary = llm.summarize(new_items, source_cfg["prompt"], ollama_cfg, source_cfg)
+    except Timeout:
+        logger.warning("LLM timed out for source '%s', skipping", source_name)
+        return None
+    except Exception as e:
+        logger.error("LLM summarize failed for source '%s': %s", source_name, e)
+        return None
+
+    if source_cfg.get("cache", True) and cache_file is not None:
+        cache.mark_seen(new_items, cache_file)
+
+    return source_name, summary
 
 def run(config_path: str = "config.yaml") -> None:
     cfg = config.load(Path(config_path))

@@ -297,3 +297,31 @@ def test_run_falls_back_when_final_summarizer_fails(mocker):
 
     mock_send.assert_called_once()
     assert "weather summary" in mock_send.call_args.args[0]
+
+
+def test_run_non_browser_sources_in_parallel(mocker):
+    """Non-browser sources should all be fetched (fetch called for each enabled one)."""
+    cfg = {
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3.2"},
+        "telegram": {"bot_token": "tok", "chat_id": "123"},
+        "sources": {
+            "weather": {"enabled": True, "cache": False, "prompt": "p"},
+            "calendar": {"enabled": True, "cache": False, "prompt": "p"},
+            "email": {"enabled": True, "cache": False, "prompt": "p"},
+        },
+        "compose": {"order": ["weather", "calendar", "email"]},
+    }
+    mocker.patch("main.config.load", return_value=cfg)
+    _mock_ollama_ok(mocker)
+    mock_weather = mocker.patch("main.sources.weather.fetch", return_value=[make_item("weather")])
+    mock_calendar = mocker.patch("main.sources.calendar.fetch", return_value=[make_item("calendar")])
+    mock_email = mocker.patch("main.sources.email.fetch", return_value=[make_item("email")])
+    mocker.patch("main.llm.summarize", return_value="summary")
+    mocker.patch("main.telegram.send")
+    mocker.patch("main.sync_playwright")
+
+    main.run(config_path="config.yaml")
+
+    mock_weather.assert_called_once()
+    mock_calendar.assert_called_once()
+    mock_email.assert_called_once()

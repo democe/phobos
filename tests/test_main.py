@@ -268,14 +268,14 @@ def test_run_news_joined_summaries_reach_composer(mocker):
     ]
     mocker.patch("main.sources.news.fetch", return_value=items)
     mocker.patch("main.llm.summarize", side_effect=["summary 1", "summary 2"])
-    mock_send = mocker.patch("main.telegram.send")
+    mock_compose = mocker.patch("main.composer.compose", return_value=["composed text"])
+    mocker.patch("main.telegram.send")
     mocker.patch("main.sync_playwright")
 
     main.run(config_path="config.yaml")
 
-    sent_text = mock_send.call_args.args[0]
-    assert "summary 1" in sent_text
-    assert "summary 2" in sent_text
+    compose_call_summaries = mock_compose.call_args.args[0]
+    assert compose_call_summaries["news"] == "summary 1\n\nsummary 2"
 
 
 def test_run_falls_back_when_final_summarizer_fails(mocker):

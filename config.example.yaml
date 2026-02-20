@@ -5,6 +5,9 @@ ollama:
   # timeout: seconds to wait for each Ollama response (default: 120).
   # Increase on slow hardware or when summarizing large payloads.
   # timeout: 120
+  # num_ctx: override the model's context window size (in tokens).
+  # Useful when the Ollama host defaults to a small context (e.g. 2048).
+  # num_ctx: 8192
 
 # ── Telegram output ─────────────────────────────────────────────────────────────
 telegram:
@@ -55,6 +58,7 @@ sources:
       - "https://example.com/news"
     cache: true
     prompt: "Summarize the top news stories factually and concisely."
+    # temperature: 0.2  # lower = more factual/deterministic
 
   twitter:
     enabled: false
@@ -66,6 +70,7 @@ sources:
     filter_usernames: false
     cache: true
     prompt: "Summarize these tweets in a light, casual tone."
+    # temperature: 1.0  # higher = more creative/varied
 
 # ── Digest composition ──────────────────────────────────────────────────────────
 compose:

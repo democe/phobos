@@ -70,11 +70,13 @@ def run(config_path: str = "config.yaml") -> None:
             try:
                 if source_name == "news":
                     per_item_summaries = []
+                    seen_items = []
                     for item in new_items:
                         try:
                             per_item_summaries.append(
-                                llm.summarize([item], source_cfg["prompt"], cfg["ollama"])
+                                llm.summarize([item], source_cfg["prompt"], cfg["ollama"], source_cfg)
                             )
+                            seen_items.append(item)
                         except Timeout:
                             logger.warning("LLM timed out for news item %s, skipping", item.id)
                         except Exception as e:
@@ -83,7 +85,7 @@ def run(config_path: str = "config.yaml") -> None:
                         continue
                     summary = "\n\n".join(per_item_summaries)
                 else:
-                    summary = llm.summarize(new_items, source_cfg["prompt"], cfg["ollama"])
+                    summary = llm.summarize(new_items, source_cfg["prompt"], cfg["ollama"], source_cfg)
             except Timeout:
                 logger.warning("LLM timed out for source '%s', skipping", source_name)
                 continue
@@ -92,7 +94,7 @@ def run(config_path: str = "config.yaml") -> None:
                 continue
 
             if source_cfg.get("cache", True):
-                cache.mark_seen(new_items, cache_file)
+                cache.mark_seen(seen_items if source_name == "news" else new_items, cache_file)
             summaries[source_name] = summary
 
         browser.close()

@@ -99,7 +99,12 @@ def run(config_path: str = "config.yaml") -> None:
             for name, src_cfg in non_browser.items()
         }
         for future in concurrent.futures.as_completed(futures):
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as e:
+                source_name = futures[future]
+                logger.error("Source '%s' failed: %s", source_name, e)
+                continue
             if result is not None:
                 source_name, summary = result
                 summaries[source_name] = summary
@@ -107,6 +112,7 @@ def run(config_path: str = "config.yaml") -> None:
     # --- Browser sources (sequential, Playwright) ---
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
+        cache_file = None
         for source_name, source_cfg in cfg["sources"].items():
             if not source_cfg.get("enabled", False):
                 continue

@@ -14,6 +14,7 @@ def test_fetch_returns_one_item_per_url(mocker):
     mock_context.new_page.return_value = mock_page
     mock_browser = MagicMock()
     mock_browser.new_context.return_value = mock_context
+    mocker.patch("sources.news.trafilatura.extract", return_value=None)
 
     items = news.fetch(NEWS_CONFIG, browser=mock_browser)
     assert len(items) == 1
@@ -27,6 +28,7 @@ def test_fetch_item_id_is_url_hash(mocker):
     mock_context.new_page.return_value = mock_page
     mock_browser = MagicMock()
     mock_browser.new_context.return_value = mock_context
+    mocker.patch("sources.news.trafilatura.extract", return_value=None)
 
     items = news.fetch(NEWS_CONFIG, browser=mock_browser)
     expected_id = hashlib.md5("https://example.com/news".encode()).hexdigest()
@@ -39,6 +41,7 @@ def test_fetch_skips_failed_url(mocker):
     mock_context.new_page.return_value = mock_page
     mock_browser = MagicMock()
     mock_browser.new_context.return_value = mock_context
+    mocker.patch("sources.news.trafilatura.extract", return_value=None)
 
     items = news.fetch(NEWS_CONFIG, browser=mock_browser)
     assert items == []
@@ -50,6 +53,7 @@ def test_fetch_caps_content_at_8000_chars(mocker):
     mock_context.new_page.return_value = mock_page
     mock_browser = MagicMock()
     mock_browser.new_context.return_value = mock_context
+    mocker.patch("sources.news.trafilatura.extract", return_value=None)
 
     items = news.fetch(NEWS_CONFIG, browser=mock_browser)
     assert len(items[0].content) == 8000

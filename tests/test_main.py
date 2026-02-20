@@ -325,3 +325,29 @@ def test_run_non_browser_sources_in_parallel(mocker):
     mock_weather.assert_called_once()
     mock_calendar.assert_called_once()
     mock_email.assert_called_once()
+
+
+def test_run_browser_sources_not_run_via_thread_pool(mocker):
+    """news and twitter must not be called via _run_source (they need Playwright)."""
+    cfg = {
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3.2"},
+        "telegram": {"bot_token": "tok", "chat_id": "123"},
+        "sources": {
+            "news": {"enabled": True, "cache": False, "prompt": "p"},
+            "weather": {"enabled": True, "cache": False, "prompt": "p"},
+        },
+        "compose": {"order": ["weather", "news"]},
+    }
+    mocker.patch("main.config.load", return_value=cfg)
+    _mock_ollama_ok(mocker)
+    mock_run_source = mocker.patch("main._run_source", return_value=("weather", "w summary"))
+    mocker.patch("main.sources.news.fetch", return_value=[make_item("news")])
+    mocker.patch("main.llm.summarize", return_value="news summary")
+    mocker.patch("main.telegram.send")
+    mocker.patch("main.sync_playwright")
+
+    main.run(config_path="config.yaml")
+
+    # _run_source should only be called for weather, not news
+    assert mock_run_source.call_count == 1
+    assert mock_run_source.call_args.args[0] == "weather"

@@ -1,3 +1,4 @@
+import concurrent.futures
 import logging
 import sys
 from pathlib import Path
@@ -86,10 +87,30 @@ def run(config_path: str = "config.yaml") -> None:
 
     summaries = {}
 
+    # --- Non-browser sources (parallel) ---
+    non_browser = {
+        name: src_cfg
+        for name, src_cfg in cfg["sources"].items()
+        if src_cfg.get("enabled", False) and name not in BROWSER_SOURCES
+    }
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {
+            executor.submit(_run_source, name, src_cfg, cfg["ollama"]): name
+            for name, src_cfg in non_browser.items()
+        }
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result is not None:
+                source_name, summary = result
+                summaries[source_name] = summary
+
+    # --- Browser sources (sequential, Playwright) ---
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
         for source_name, source_cfg in cfg["sources"].items():
             if not source_cfg.get("enabled", False):
+                continue
+            if source_name not in BROWSER_SOURCES:
                 continue
             if source_name not in SOURCE_MODULES:
                 logger.warning("Unknown source '%s', skipping", source_name)

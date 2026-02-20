@@ -1,0 +1,87 @@
+# ── LLM ────────────────────────────────────────────────────────────────────────
+ollama:
+  base_url: "http://localhost:11434"
+  model: "llama3.2"
+  # timeout: seconds to wait for each Ollama response (default: 120).
+  # Increase on slow hardware or when summarizing large payloads.
+  # timeout: 120
+
+# ── Telegram output ─────────────────────────────────────────────────────────────
+telegram:
+  bot_token: "YOUR_BOT_TOKEN"
+  # chat_id is optional — if omitted, the bot auto-discovers it from the most
+  # recent message sent to it. Send your bot any message first, then run phobos.
+
+# ── Sources ─────────────────────────────────────────────────────────────────────
+# Each source has:
+#   enabled: true/false    — disabled sources are skipped entirely
+#   cache: true/false      — true skips items seen in the last 24h (default: true)
+#   prompt: "..."          — LLM instruction controlling tone and style
+sources:
+  weather:
+    enabled: false
+    ambient_api_key: "YOUR_AMBIENT_API_KEY"
+    ambient_app_key: "YOUR_AMBIENT_APP_KEY"
+    station_mac: "YOUR_STATION_MAC"
+    # nws_lat/nws_lon are optional — coordinates are read from the Ambient Weather
+    # station automatically. Only set these if your station doesn't return coords.
+    # nws_lat: "43.6150"
+    # nws_lon: "-116.2023"
+    # Weather rarely changes run-to-run; set cache: false to always include it.
+    cache: false
+    prompt: "Give a brief weather summary including current conditions and forecast."
+
+  calendar:
+    enabled: false
+    ics_url: "https://calendar.example.com/feed.ics"
+    lookahead_days: 7
+    # Events repeat across runs; set cache: false to always show upcoming events.
+    cache: false
+    prompt: "List upcoming calendar events with date, time, and title."
+
+  email:
+    enabled: false
+    host: "imap.example.com"
+    port: 993
+    username: "user@example.com"
+    password: "YOUR_PASSWORD"
+    mailbox: "INBOX"
+    cache: true
+    prompt: "Summarize each email briefly, noting the sender and subject."
+
+  news:
+    enabled: false
+    urls:
+      - "https://example.com/news"
+    cache: true
+    prompt: "Summarize the top news stories factually and concisely."
+
+  twitter:
+    enabled: false
+    auth_token: "YOUR_AUTH_TOKEN"
+    ct0: "YOUR_CT0_TOKEN"
+    # Scrapes your authenticated home feed.
+    # Set filter_usernames: true to keep only specific authors.
+    usernames: ["user1"]
+    filter_usernames: false
+    cache: true
+    prompt: "Summarize these tweets in a light, casual tone."
+
+# ── Digest composition ──────────────────────────────────────────────────────────
+compose:
+  # Flat mode: all sources in one Telegram message (split at 4096 chars if needed).
+  # List sources in the order they should appear; unlisted sources are omitted.
+  order: [weather, calendar, email, news, twitter]
+
+  # Optional: run a second LLM pass to compress the digest before sending.
+  # Only applies in flat 'order' mode (ignored when 'messages' is set).
+  # The LLM is prompted to stay under 4096 chars; Telegram still splits if needed.
+  # summarize: false
+
+  # Optional: split sources into separate Telegram messages.
+  # When 'messages' is set, 'order' above is ignored.
+  # Each inner list becomes one message; sources not listed are omitted.
+  # messages:
+  #   - [weather, calendar]
+  #   - [email, news]
+  #   - [twitter]

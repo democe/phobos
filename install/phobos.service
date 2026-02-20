@@ -1,0 +1,12 @@
+[Unit]
+Description=Phobos digest pipeline
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=phobos
+Group=phobos
+WorkingDirectory=__INSTALL_DIR__
+Environment=PLAYWRIGHT_BROWSERS_PATH=__INSTALL_DIR__/pw-browsers
+ExecStart=__INSTALL_DIR__/.venv/bin/python main.py __INSTALL_DIR__/config.yaml

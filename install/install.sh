@@ -11,19 +11,24 @@ INSTALL_DIR="${1:-/opt/phobos}"
 SERVICE_USER="phobos"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-UV_BIN="$(command -v uv || true)"
 PYTHON_TARGET="3.14"
 
-# Re-exec with sudo if not root
+# Re-exec with sudo if not root, preserving PATH so uv remains findable
 if [[ "$EUID" -ne 0 ]]; then
     echo "Requesting sudo for installation..."
-    exec sudo "$SCRIPT_DIR/install.sh" "$@"
+    exec sudo --preserve-env=PATH "$SCRIPT_DIR/install.sh" "$@"
 fi
+
+# Resolve uv after the sudo re-exec so we search the effective root PATH.
+# Also include common user-local install locations as a fallback.
+export PATH="/root/.local/bin:/usr/local/bin:$PATH"
+UV_BIN="$(command -v uv || true)"
 
 echo "==> Installing Phobos to $INSTALL_DIR"
 
 if [[ -z "$UV_BIN" ]]; then
     echo "ERROR: uv is not installed or not on PATH."
+    echo "       Searched PATH: $PATH"
     exit 1
 fi
 
@@ -74,11 +79,12 @@ chown -R "$SERVICE_USER:$SERVICE_USER" "$INSTALL_DIR"
 chmod 600 "$INSTALL_DIR/config.yaml"
 
 # Helper: run a command as the service user inside the install dir.
+# We cd to INSTALL_DIR so uv doesn't walk up into /root looking for config.
 run_as_service_user() {
     sudo -u "$SERVICE_USER" \
         env HOME="$INSTALL_DIR" \
             PLAYWRIGHT_BROWSERS_PATH="$INSTALL_DIR/pw-browsers" \
-        "$@"
+        sh -c 'cd "$1" && shift && exec "$@"' _ "$INSTALL_DIR" "$@"
 }
 
 echo "==> Installing Python $PYTHON_TARGET"

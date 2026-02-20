@@ -18,7 +18,7 @@ chmod 600 "$INSTALL_DIR/config.yaml"
 cd "$INSTALL_DIR"
 uv python install 3.14
 uv sync
-uv run playwright install chromium
+PLAYWRIGHT_BROWSERS_PATH="$INSTALL_DIR/pw-browsers" uv run playwright install chromium
 
 sed "s|__INSTALL_DIR__|$INSTALL_DIR|g" "$SCRIPT_DIR/phobos.service" > /etc/systemd/system/phobos.service
 cp "$SCRIPT_DIR/phobos.timer" /etc/systemd/system/phobos.timer

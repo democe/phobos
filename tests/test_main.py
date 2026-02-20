@@ -223,6 +223,61 @@ def test_run_llm_timeout_logs_warning_not_error(mocker, caplog):
     assert not any(r.levelno == logging.ERROR for r in caplog.records)
 
 
+def test_run_news_summarizes_each_item_individually(mocker):
+    cfg = {
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3.2"},
+        "telegram": {"bot_token": "tok", "chat_id": "123"},
+        "sources": {
+            "news": {"enabled": True, "cache": False, "prompt": "summarize news"},
+        },
+        "compose": {"order": ["news"]},
+    }
+    mocker.patch("main.config.load", return_value=cfg)
+    _mock_ollama_ok(mocker)
+    items = [
+        Item(id="a", source="news", content="article 1", timestamp="2026-01-01T00:00:00"),
+        Item(id="b", source="news", content="article 2", timestamp="2026-01-01T00:00:00"),
+    ]
+    mocker.patch("main.sources.news.fetch", return_value=items)
+    mock_summarize = mocker.patch("main.llm.summarize", side_effect=["summary 1", "summary 2"])
+    mocker.patch("main.telegram.send")
+    mocker.patch("main.sync_playwright")
+
+    main.run(config_path="config.yaml")
+
+    assert mock_summarize.call_count == 2
+    # Each call should receive exactly one item
+    assert mock_summarize.call_args_list[0].args[0] == [items[0]]
+    assert mock_summarize.call_args_list[1].args[0] == [items[1]]
+
+
+def test_run_news_joined_summaries_reach_composer(mocker):
+    cfg = {
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3.2"},
+        "telegram": {"bot_token": "tok", "chat_id": "123"},
+        "sources": {
+            "news": {"enabled": True, "cache": False, "prompt": "summarize news"},
+        },
+        "compose": {"order": ["news"]},
+    }
+    mocker.patch("main.config.load", return_value=cfg)
+    _mock_ollama_ok(mocker)
+    items = [
+        Item(id="a", source="news", content="article 1", timestamp="2026-01-01T00:00:00"),
+        Item(id="b", source="news", content="article 2", timestamp="2026-01-01T00:00:00"),
+    ]
+    mocker.patch("main.sources.news.fetch", return_value=items)
+    mocker.patch("main.llm.summarize", side_effect=["summary 1", "summary 2"])
+    mock_send = mocker.patch("main.telegram.send")
+    mocker.patch("main.sync_playwright")
+
+    main.run(config_path="config.yaml")
+
+    sent_text = mock_send.call_args.args[0]
+    assert "summary 1" in sent_text
+    assert "summary 2" in sent_text
+
+
 def test_run_falls_back_when_final_summarizer_fails(mocker):
     cfg = {
         "ollama": {"base_url": "http://localhost:11434", "model": "llama3.2"},

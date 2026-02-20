@@ -68,7 +68,22 @@ def run(config_path: str = "config.yaml") -> None:
                 new_items = items
 
             try:
-                summary = llm.summarize(new_items, source_cfg["prompt"], cfg["ollama"])
+                if source_name == "news":
+                    per_item_summaries = []
+                    for item in new_items:
+                        try:
+                            per_item_summaries.append(
+                                llm.summarize([item], source_cfg["prompt"], cfg["ollama"])
+                            )
+                        except Timeout:
+                            logger.warning("LLM timed out for news item %s, skipping", item.id)
+                        except Exception as e:
+                            logger.error("LLM summarize failed for news item %s: %s", item.id, e)
+                    if not per_item_summaries:
+                        continue
+                    summary = "\n\n".join(per_item_summaries)
+                else:
+                    summary = llm.summarize(new_items, source_cfg["prompt"], cfg["ollama"])
             except Timeout:
                 logger.warning("LLM timed out for source '%s', skipping", source_name)
                 continue

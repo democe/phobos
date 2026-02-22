@@ -11,6 +11,7 @@ MAX_MESSAGE_LEN = 4096
 def send(text: str, config: dict) -> None:
     token = config["bot_token"]
     chat_id = config.get("chat_id") or _get_chat_id(token)
+    logger.info("Sending to chat_id %s", chat_id)
     url = TELEGRAM_API.format(token=token)
     for chunk in _split(text):
         response = requests.post(url, json={

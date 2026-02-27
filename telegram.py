@@ -17,6 +17,8 @@ def _strip_markdown(text: str) -> str:
     text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
     # Remove bold/italic markers (* ** _ __)
     text = re.sub(r"(\*{1,2}|_{1,2})(.*?)\1", r"\2", text)
+    # Remove any remaining unpaired asterisks or underscores
+    text = re.sub(r"\*{1,2}|_{1,2}", "", text)
     # Remove inline code backticks
     text = re.sub(r"`([^`]+)`", r"\1", text)
     # Collapse excess blank lines left by removed elements
@@ -30,12 +32,17 @@ def send(text: str, config: dict) -> None:
     logger.info("Sending to chat_id %s", chat_id)
     url = TELEGRAM_API.format(token=token)
     for chunk in _split(_strip_markdown(text)):
-        response = requests.post(url, json={
-            "chat_id": chat_id,
-            "text": chunk,
-        })
+        response = requests.post(
+            url,
+            json={
+                "chat_id": chat_id,
+                "text": chunk,
+            },
+        )
         if not response.ok:
-            logger.error("Telegram API error %s: %s", response.status_code, response.text)
+            logger.error(
+                "Telegram API error %s: %s", response.status_code, response.text
+            )
         response.raise_for_status()
 
 
